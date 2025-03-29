@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+// Basic user model for authentication
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  hashedPassword      String?
+  role          String    @default("user")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Disaster information models
+model DisasterEvent {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?  @db.Text
+  disasterType String
+  severity     String
+  status       String   @default("active")
+  timestamp    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  locationId   String
+  location     Location @relation(fields: [locationId], references: [id])
+  sources      Source[]
+  
+}
+
+model Location {
+  id          String          @id @default(cuid())
+  name        String?
+  latitude    Float
+  longitude   Float
+  country     String?
+  region      String?
+  city        String?
+  events      DisasterEvent[]
+}
+
+model Source {
+  id           String        @id @default(cuid())
+  sourceType   String        // twitter, news, weather, etc.
+  url          String?
+  content      String?       @db.Text
+  author       String?
+  timestamp    DateTime
+  credibility  Float         @default(0.5)
+  eventId      String
+  event        DisasterEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+}
+
+// Alerting system
+model Alert {
+  id           String   @id @default(cuid())
+  userId       String
+  disasterType String?
+  location     String?
+  severity     String?
+  radius       Float?   // km radius from location
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
